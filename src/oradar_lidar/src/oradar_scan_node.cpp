@@ -17,87 +17,77 @@ using namespace std;
 using namespace ordlidar;
 
 #define Degree2Rad(X) ((X)*M_PI / 180.)
-
+const int TOTAL_POINTS = 450; 
 
 void publish_msg(rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr &pub, full_scan_data_st *scan_frame, rclcpp::Time start,
                  double scan_time, std::string frame_id, bool clockwise,
                  double angle_min, double angle_max, double min_range, double max_range)
 {
   sensor_msgs::msg::LaserScan scanMsg;
-  int point_nums = scan_frame->vailtidy_point_num;
-
+  
+  int point_nums = TOTAL_POINTS;
   scanMsg.header.stamp = start;
   scanMsg.header.frame_id = frame_id;
   scanMsg.angle_min = Degree2Rad(scan_frame->data[0].angle);
   scanMsg.angle_max = Degree2Rad(scan_frame->data[point_nums - 1].angle);
   double diff = scan_frame->data[point_nums - 1].angle - scan_frame->data[0].angle;
-  scanMsg.angle_increment = Degree2Rad(diff/point_nums);
+  
+  scanMsg.angle_increment = Degree2Rad(diff / (TOTAL_POINTS - 1));
   scanMsg.scan_time = scan_time;
-  scanMsg.time_increment = scan_time / point_nums;
+
+  scanMsg.time_increment = scan_time / TOTAL_POINTS;
   scanMsg.range_min = min_range;
   scanMsg.range_max = max_range;
-
-  scanMsg.ranges.assign(point_nums, std::numeric_limits<float>::quiet_NaN());
-  scanMsg.intensities.assign(point_nums, std::numeric_limits<float>::quiet_NaN());
 
   float range = 0.0;
   float intensity = 0.0;
   float dir_angle;
   unsigned int last_index = 0;
 
-  for (int i = 0; i < point_nums; i++)
+  std::cout << "point_nums: " << point_nums << std::endl;
+
+  
+  std::vector<float> ranges(TOTAL_POINTS, std::numeric_limits<float>::quiet_NaN());
+  std::vector<float> intensities(TOTAL_POINTS, std::numeric_limits<float>::quiet_NaN());
+
+
+  for (int i = 0; i < TOTAL_POINTS; i++)
   {
-    range = scan_frame->data[i].distance * 0.001;
-    intensity = scan_frame->data[i].intensity;
+      range = scan_frame->data[i].distance * 0.001;
+      intensity = scan_frame->data[i].intensity;
 
-    if ((range > max_range) || (range < min_range))
-    {
-      range = 0.0;
-      intensity = 0.0;
-    }
-
-    if (!clockwise)
-    {
-      dir_angle = static_cast<float>(360.f - scan_frame->data[i].angle);
-    }
-    else
-    {
-      dir_angle = scan_frame->data[i].angle;
-    }
-
-    if ((dir_angle < angle_min) || (dir_angle > angle_max))
-    {
-      range = 0;
-      intensity = 0;
-    }
-
-    float angle = Degree2Rad(dir_angle);
-    unsigned int index = (unsigned int)((angle - scanMsg.angle_min) / scanMsg.angle_increment);
-    if (index < point_nums)
-    {
-      // If the current content is Nan, it is assigned directly
-      if (std::isnan(scanMsg.ranges[index]))
+      if ((range > max_range) || (range < min_range))
       {
-        scanMsg.ranges[index] = range;
-        unsigned int err = index - last_index;
-        if (err == 2)
-        {
-          scanMsg.ranges[index - 1] = range;
-          scanMsg.intensities[index - 1] = intensity;
-        }
+          continue;
+      }
+
+      if (!clockwise)
+      {
+          dir_angle = static_cast<float>(360.f - scan_frame->data[i].angle);
       }
       else
-      { // Otherwise, only when the distance is less than the current
-        //   value, it can be re assigned
-        if (range < scanMsg.ranges[index])
-        {
-          scanMsg.ranges[index] = range;
-        }
+      {
+          dir_angle = scan_frame->data[i].angle;
       }
-      scanMsg.intensities[index] = intensity;
-      last_index = index;
-    }
+
+      if ((dir_angle < angle_min) || (dir_angle > angle_max))
+      {
+          continue;
+      }
+
+      float angle = Degree2Rad(dir_angle);
+      unsigned int index = (unsigned int)((angle - scanMsg.angle_min) / scanMsg.angle_increment);
+
+      if (index < point_nums)
+      {
+          // No es necesario llamar a resize()
+          ranges[index] = range;
+          intensities[index] = intensity;
+      }
   }
+
+  scanMsg.ranges = ranges;
+  scanMsg.intensities = intensities;
 
   pub->publish(scanMsg);
 }

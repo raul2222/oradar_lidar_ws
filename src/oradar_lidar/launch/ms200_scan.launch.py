@@ -28,7 +28,7 @@ def generate_launch_description():
       parameters=[
         {'device_model': 'MS200'},
         {'frame_id': 'laser_frame'},
-        {'scan_topic': '/MS200/scan'},
+        {'scan_topic': '/scan'},
         {'port_name': '/dev/ttyUSB2'},
         {'baudrate': 230400},
         {'angle_min': 0.0},
@@ -45,12 +45,43 @@ def generate_launch_description():
     package='tf2_ros',
     executable='static_transform_publisher',
     name='base_link_to_base_laser',
-    arguments=['0.299','0','0.512','0.0','0.0','3.14','base_link','laser_frame']
+    arguments=['0', '0' ,'0','0.0','0.0','0.0','base_link','odom']
   )
-
-
-  # Define LaunchDescription variable
   ord = LaunchDescription()
+
+  ## tf2 - base_footprint to laser
+  node_tf2_fp2laser = Node(
+      name='tf2_ros_fp_laser',
+      package='tf2_ros',
+      executable='static_transform_publisher',
+      output='screen',
+      arguments=['0', '0', '0', '0.0', '0.0', '0.0', 'base_footprint', 'laser_frame'],   
+  )
+ # ord.add_action(node_tf2_fp2laser)
+
+  ## tf2 - base_footprint to map
+  node_tf2_fp2map = Node(
+      name='tf2_ros_fp_map',
+      package='tf2_ros',
+      executable='static_transform_publisher',
+      output='screen',
+      arguments=['0', '0', '0', '0.0', '0.0', '0.0', 'base_footprint', 'map'], 
+  )
+ # ord.add_action(node_tf2_fp2map)
+
+  ## tf2 - base_footprint to odom
+  node_tf2_fp2odom = Node(
+      name='tf2_ros_fp_odom',
+      package='tf2_ros',
+      executable='static_transform_publisher',
+      output='screen',
+      arguments=['0', '0', '0', '0.0', '0.0', '0.0', 'base_footprint', 'odom'],
+  )
+ # ord.add_action(node_tf2_fp2odom)
+
+
+
+
 
   ord.add_action(ordlidar_node)
   ord.add_action(base_link_to_laser_tf_node)
